@@ -1,28 +1,32 @@
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub enum Token {
+pub enum TokenType {
     #[default]
     Identifier,
     Number,
     String,
 }
 
-pub type LexedToken = (String, Token);
-pub type LexedTokens = Vec<Vec<LexedToken>>;
+pub type LexedTokenLines = Vec<Vec<Token>>;
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Token {
+    pub token_type: TokenType,
+    pub value: String,
+}
 
 #[derive(Default)]
 pub struct Lexer {
-    token_key: String,
-    token_type: Token,
-    local_tokens: Vec<LexedToken>,
+    token: Token,
+    local_tokens: Vec<Token>,
     is_in_string: bool,
     is_in_number: bool,
 }
 
 impl Lexer {
-    pub fn lex_code(&mut self, code: String) -> LexedTokens {
+    pub fn lex_code(&mut self, code: String) -> LexedTokenLines {
         println!("--- Code ---\n{}\n------------\n", code);
 
-        let mut global_tokens: LexedTokens = vec![];
+        let mut global_tokens: LexedTokenLines = vec![];
 
         for line in code.split(|c| c == '\n' || c == ';') {
             if line.is_empty() {
@@ -36,7 +40,7 @@ impl Lexer {
                 // Strings.
                 if char == '"' {
                     if !self.is_in_string {
-                        self.token_type = Token::String;
+                        self.token.token_type = TokenType::String;
                         self.is_in_string = true;
                     } else {
                         self.push_token();
@@ -46,7 +50,7 @@ impl Lexer {
                 }
 
                 if self.is_in_string {
-                    self.token_key += char.to_string().as_str();
+                    self.token.value += char.to_string().as_str();
                     continue;
                 }
 
@@ -64,7 +68,7 @@ impl Lexer {
                 {
                     self.push_token();
 
-                    self.token_type = Token::Number;
+                    self.token.token_type = TokenType::Number;
                     self.is_in_number = true
                 } else if self.is_in_number && !char.is_numeric() {
                     self.push_token();
@@ -75,7 +79,7 @@ impl Lexer {
                     continue;
                 }
 
-                self.token_key += char.to_string().as_str();
+                self.token.value += char.to_string().as_str();
             }
 
             self.push_token();
@@ -87,14 +91,12 @@ impl Lexer {
     }
 
     fn push_token(&mut self) {
-        if self.token_key.is_empty() {
+        if self.token.value.is_empty() {
             return;
         }
 
-        self.local_tokens
-            .push((self.token_key.clone(), self.token_type));
-        self.token_key = String::new();
-        self.token_type = Token::default();
+        self.local_tokens.push(self.token.clone());
+        self.token = Token::default();
         self.is_in_number = false;
         self.is_in_string = false;
     }

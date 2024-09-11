@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     io::{self, Write},
-    process::exit,
 };
 
 use crate::lexer::{LexedTokenLines, Token, TokenType};
@@ -31,35 +30,33 @@ struct Variable {
 pub struct Parser {
     stack: Vec<Token>,
     variables: HashMap<String, Variable>,
-    tokens_in_file: LexedTokenLines,
     tokens_on_line: Vec<Token>,
     line: usize,
     current_token: Token,
     index: usize,
     skip_next: bool,
+    should_abort: bool,
 }
 
 impl Parser {
-    pub fn new(tokens: LexedTokenLines) -> Self {
-        Parser {
-            tokens_in_file: tokens,
-            ..Default::default()
-        }
-    }
-
-    pub fn parse(&mut self) {
+    pub fn parse(&mut self, tokens: LexedTokenLines) {
         println!(
             "--- Tokens ---\n{:?}\n--------------\n\n--- Output ---",
-            self.tokens_in_file
+            tokens
         );
 
-        for (line, mut tokens) in self.tokens_in_file.clone().into_iter().enumerate() {
+        for (line, mut tokens) in tokens.into_iter().enumerate() {
             self.tokens_on_line.clone_from(&tokens);
             tokens.reverse();
 
             self.line = line;
 
             for (i, token) in tokens.clone().into_iter().enumerate() {
+                if self.should_abort {
+                    println!("--------------");
+                    return;
+                }
+
                 if self.skip_next {
                     self.skip_next = false;
                     continue;
@@ -117,8 +114,10 @@ impl Parser {
 
             if a.is_none() {
                 self.error("Operator `+` expected a number to its left, got nothing");
+                return;
             } else if b.is_none() {
                 self.error("Operator `+` expected a number to its right, got nothing");
+                return;
             }
 
             let a = a.unwrap();
@@ -129,11 +128,13 @@ impl Parser {
                     "`+` expected a string or number, got identifier: `{}`",
                     a.value
                 ));
+                return;
             } else if b.token_type != TokenType::String && b.token_type != TokenType::Number {
                 self.error(&format!(
                     "`+` expected a string or number, got identifier: `{}`",
                     b.value
                 ));
+                return;
             }
 
             self.skip_next = true;
@@ -153,6 +154,8 @@ impl Parser {
                     "Operator `+` expected a number to its left. Got `{}`",
                     a.value
                 ));
+
+                0
             });
 
             let b_number = b.value.parse::<i64>().unwrap_or_else(|_| {
@@ -160,6 +163,8 @@ impl Parser {
                     "Operator `+` expected a number to its right. Got `{}`",
                     b.value
                 ));
+
+                0
             });
 
             self.stack.push(Token {
@@ -192,7 +197,7 @@ impl Parser {
     }
 
     fn next_token(
-        &self,
+        &mut self,
         identifier: &str,
         expected_argument_amount: u8,
         default: Option<Token>,
@@ -203,6 +208,8 @@ impl Parser {
                     "`{}` needs {} argument(s).",
                     identifier, expected_argument_amount
                 ));
+
+                Token::default()
             });
         }
 
@@ -217,7 +224,7 @@ impl Parser {
     }
 
     fn previous_token(
-        &self,
+        &mut self,
         identifier: &str,
         expected_argument_amount: u8,
         default: Option<Token>,
@@ -228,6 +235,8 @@ impl Parser {
                     "`{}` needs {} argument(s).",
                     identifier, expected_argument_amount
                 ));
+
+                Token::default()
             });
         }
 
@@ -295,10 +304,12 @@ impl Parser {
                 "`{}` needs {} argument(s)",
                 identifier, expected_argument_amount
             ));
+
+            Token::default()
         })
     }
 
-    fn error(&self, message: &str) -> ! {
+    fn error(&mut self, message: &str) {
         io::stderr()
             .write_all(
                 format!(
@@ -309,6 +320,7 @@ impl Parser {
                 .as_bytes(),
             )
             .expect("Encountered error while printing error. Error-ception!");
-        exit(1);
+
+        self.should_abort = true;
     }
 }

@@ -1,26 +1,57 @@
-use std::{env, fs};
+use std::{
+    fs,
+    io::{self, Write},
+};
 
+use clap::Parser as _;
 use lexer::Lexer;
 use parser::Parser;
 
 mod lexer;
 mod parser;
 
+#[derive(clap::Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(required_unless_present("repl"), trailing_var_arg(true))]
+    file_path: Vec<String>,
+
+    #[arg(short, long)]
+    repl: bool,
+}
+
 fn read_code_from_file(file_path: String) -> String {
     fs::read_to_string(file_path).expect("Please pass a valid file")
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        panic!("Please supply a valid path. E.g. <path to executable> ./example.milo")
+    let args = Args::parse();
+
+    if args.repl {
+        loop {
+            let mut lexer = Lexer::default();
+            let mut parser = Parser::default();
+
+            let mut input = String::new();
+
+            print!("> ");
+            io::stdout().flush().unwrap();
+
+            match io::stdin().read_line(&mut input) {
+                Ok(_) => {
+                    let tokens = lexer.lex_code(input);
+                    parser.parse(tokens);
+                }
+                Err(err) => panic!("{}", err),
+            };
+        }
     }
 
-    let code = read_code_from_file(args[1].clone());
-
     let mut lexer = Lexer::default();
-    let tokens = lexer.lex_code(code);
+    let mut parser = Parser::default();
 
-    let mut parser = Parser::new(tokens);
-    parser.parse();
+    let code = read_code_from_file(args.file_path[0].clone());
+
+    let tokens = lexer.lex_code(code);
+    parser.parse(tokens);
 }

@@ -20,27 +20,28 @@ pub struct Lexer {
 
 impl Lexer {
     pub fn lex_code(&mut self, code: String) -> LexedTokens {
-        println!("{}", code);
+        println!("--- Code ---\n{}\n------------\n", code);
 
         let mut global_tokens: LexedTokens = vec![];
 
         for line in code.split(|c| c == '\n' || c == ';') {
-            for char in line.chars() {
-                // Characters that you cant even have in strings.
-                if char == '\r' {
-                    continue;
-                }
+            if line == "" {
+                continue;
+            }
 
+            // Filter away characters that you cant even have in strings.
+            let chars: Vec<char> = line.chars().filter(|c| *c != '\r').collect();
+
+            for (i, char) in chars.clone().into_iter().enumerate() {
                 // Strings.
                 if char == '"' {
                     if !self.is_in_string {
                         self.token_type = Token::String;
+                        self.is_in_string = true;
                     } else {
                         self.push_token();
-                        self.token_type = Token::Identifier;
                     }
 
-                    self.is_in_string = !self.is_in_string;
                     continue;
                 }
 
@@ -55,22 +56,19 @@ impl Lexer {
                     continue;
                 }
 
-                // Ignore outside of strings.
-                if char == ')' || char == ' ' {
-                    continue;
-                }
-
                 // Numbers.
-                if !self.is_in_number && !self.is_in_string && char.is_numeric() {
+                if !self.is_in_number && !self.is_in_string && char.is_numeric() && !chars[i - 1].is_alphanumeric() {
                     self.push_token();
 
                     self.token_type = Token::Number;
                     self.is_in_number = true
                 } else if self.is_in_number && !char.is_numeric() {
                     self.push_token();
+                }
 
-                    self.token_type = Token::Identifier;
-                    self.is_in_number = false
+                // Ignore outside of strings.
+                if char == ')' || char == ' ' || char == ',' {
+                    continue;
                 }
 
                 self.token_key += char.to_string().as_str();
@@ -92,5 +90,7 @@ impl Lexer {
         self.local_tokens.push((self.token_key.clone(), self.token_type));
         self.token_key = String::new();
         self.token_type = Token::default();
+        self.is_in_number = false;
+        self.is_in_string = false;
     }
 }

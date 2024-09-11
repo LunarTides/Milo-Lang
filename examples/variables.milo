@@ -1,6 +1,6 @@
-int i = 1;
-int f = 2;
-print(i + f + f + i);
-
-string hello = "Hello, world!";
+string hello = "Hello"//, world!";
 print(hello);
+
+int one = 1;
+int two = 2;
+print(one + two) // + f + i);

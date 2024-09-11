@@ -123,13 +123,21 @@ impl Parser {
             let name = self.previous_token("=", 2, None);
             let value = self.next_token("=", 2, None);
 
+            self.stack.pop();
             self.skip_next = true;
 
-            // TODO: Actually get the variable type.
+            let is_string = value.value.starts_with('"') && value.value.ends_with('"');
+
+            let variable_type = if is_string {
+                VariableType::String
+            } else {
+                VariableType::Number
+            };
+
             self.variables.insert(
                 name.value,
                 Variable {
-                    variable_type: VariableType::Number,
+                    variable_type,
                     value: value.value,
                 },
             );

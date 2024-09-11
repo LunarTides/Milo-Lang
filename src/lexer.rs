@@ -55,6 +55,11 @@ impl Lexer {
                     continue;
                 }
 
+                // Comment logic.
+                if char == '#' || (char == '/' && (i < chars.len() - 1 && chars[i + 1] == '/')) {
+                    break;
+                }
+
                 // Opening brackets.
                 if char == '(' || char == ' ' {
                     self.push_token();
@@ -81,7 +86,7 @@ impl Lexer {
                     || char == '*'
                     || char == '/'
                     || char == '^'
-                    || (i >= chars.len() && chars[i + 1] == '=')
+                    || (i < chars.len() - 1 && chars[i + 1] == '=')
                 {
                     self.token.token_type = TokenType::Operator;
                 }

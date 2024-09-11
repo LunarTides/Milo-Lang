@@ -4,3 +4,4 @@ print("Hello, milo!");
 print(01);
 print();
 print("01");
+print(0 + 1);

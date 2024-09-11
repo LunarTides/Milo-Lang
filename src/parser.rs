@@ -96,11 +96,11 @@ impl Parser {
             }
 
             println!("{}", to_print);
-        }
-
-        let var = self.try_parse_variable(&identifier);
-        if let Some(variable) = var {
-            self.stack.push(variable);
+        } else {
+            let var = self.try_parse_variable(&identifier);
+            if let Some(variable) = var {
+                self.stack.push(variable);
+            }
         }
     }
 

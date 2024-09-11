@@ -1,6 +1,6 @@
 string hello = "Hello"//, world!";
-print(hello);
+print(hello); // Should print "Hello"
 
 int one = 1;
 int two = 2;
-print(one + two) // + f + i);
+print(one + two + two + one); // Should print "6"

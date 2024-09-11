@@ -70,7 +70,7 @@ impl Lexer {
                 if !self.is_in_number
                     && !self.is_in_string
                     && char.is_numeric()
-                    && (i > 0 && !chars[i - 1].is_alphanumeric())
+                    && !(i > 0 && chars[i - 1].is_alphanumeric())
                 {
                     self.push_token();
 

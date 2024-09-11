@@ -25,7 +25,7 @@ impl Lexer {
         let mut global_tokens: LexedTokens = vec![];
 
         for line in code.split(|c| c == '\n' || c == ';') {
-            if line == "" {
+            if line.is_empty() {
                 continue;
             }
 
@@ -57,7 +57,11 @@ impl Lexer {
                 }
 
                 // Numbers.
-                if !self.is_in_number && !self.is_in_string && char.is_numeric() && !chars[i - 1].is_alphanumeric() {
+                if !self.is_in_number
+                    && !self.is_in_string
+                    && char.is_numeric()
+                    && !chars[i - 1].is_alphanumeric()
+                {
                     self.push_token();
 
                     self.token_type = Token::Number;
@@ -83,11 +87,12 @@ impl Lexer {
     }
 
     fn push_token(&mut self) {
-        if self.token_key == "" {
-            return
+        if self.token_key.is_empty() {
+            return;
         }
 
-        self.local_tokens.push((self.token_key.clone(), self.token_type));
+        self.local_tokens
+            .push((self.token_key.clone(), self.token_type));
         self.token_key = String::new();
         self.token_type = Token::default();
         self.is_in_number = false;

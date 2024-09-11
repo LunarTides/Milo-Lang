@@ -9,6 +9,15 @@ pub enum VariableType {
     Number,
 }
 
+impl From<VariableType> for TokenType {
+    fn from(variable_type: VariableType) -> TokenType {
+        match variable_type {
+            VariableType::String => TokenType::String,
+            VariableType::Number => TokenType::Number,
+        }
+    }
+}
+
 struct Variable {
     variable_type: VariableType,
     value: String,
@@ -88,6 +97,11 @@ impl Parser {
 
             println!("{}", to_print);
         }
+
+        let var = self.try_parse_variable(&identifier);
+        if let Some(variable) = var {
+            self.stack.push(variable);
+        }
     }
 
     fn parse_operator(&mut self, operator: String) {
@@ -97,15 +111,28 @@ impl Parser {
                 .value
                 .parse::<i64>()
                 .unwrap();
-            let b = self.next_token("+", 2, None).value.parse::<i64>().unwrap();
+            let b = self.stack.pop().unwrap().value.parse::<i64>().unwrap();
 
-            self.stack.pop();
             self.skip_next = true;
 
             self.stack.push(Token {
                 token_type: TokenType::Number,
                 value: (a + b).to_string(),
             })
+        } else if operator == "=" {
+            let name = self.previous_token("=", 2, None);
+            let value = self.next_token("=", 2, None);
+
+            self.skip_next = true;
+
+            // TODO: Actually get the variable type.
+            self.variables.insert(
+                name.value,
+                Variable {
+                    variable_type: VariableType::Number,
+                    value: value.value,
+                },
+            );
         }
     }
 
@@ -124,7 +151,14 @@ impl Parser {
             });
         }
 
-        self.tokens_on_line[self.index + 1].clone()
+        let to_return = self.tokens_on_line[self.index + 1].clone();
+
+        let var = self.try_parse_variable(&to_return.value);
+        if let Some(variable) = var {
+            return variable;
+        }
+
+        to_return
     }
 
     fn previous_token(
@@ -142,7 +176,26 @@ impl Parser {
             });
         }
 
-        self.tokens_on_line[self.index - 1].clone()
+        let to_return = self.tokens_on_line[self.index - 1].clone();
+
+        let var = self.try_parse_variable(&to_return.value);
+        if let Some(variable) = var {
+            return variable;
+        }
+
+        to_return
+    }
+
+    fn try_parse_variable(&self, identifier: &String) -> Option<Token> {
+        let var: Option<&Variable> = self.variables.get(identifier);
+        if let Some(variable) = var {
+            return Some(Token {
+                token_type: TokenType::from(variable.variable_type),
+                value: variable.value.clone(),
+            });
+        }
+
+        None
     }
 
     fn pop_stack(

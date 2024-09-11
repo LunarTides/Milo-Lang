@@ -1,5 +1,6 @@
 int i = 1;
-print(i);
+int f = 2;
+print(i + f + f + i);
 
 string hello = "Hello, world!";
 print(hello);

@@ -2,3 +2,5 @@ print("Hello, world!");
 print(add(4, 5));
 print("Hello, milo!");
 print(01);
+print();
+print("01");

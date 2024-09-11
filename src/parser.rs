@@ -1,4 +1,8 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    io::{self, Write},
+    process::exit,
+};
 
 use crate::lexer::{LexedTokenLines, Token, TokenType};
 
@@ -100,24 +104,67 @@ impl Parser {
             let var = self.try_parse_variable(&identifier);
             if let Some(variable) = var {
                 self.stack.push(variable);
+            } else {
+                self.error(&format!("Unknown identifier: `{}`", identifier));
             }
         }
     }
 
     fn parse_operator(&mut self, operator: String) {
         if operator == "+" {
-            let a = self
-                .previous_token("+", 2, None)
-                .value
-                .parse::<i64>()
-                .unwrap();
-            let b = self.stack.pop().unwrap().value.parse::<i64>().unwrap();
+            let a = self.try_previous_token();
+            let b = self.stack.pop();
+
+            if a.is_none() {
+                self.error("Operator `+` expected a number to its left, got nothing");
+            } else if b.is_none() {
+                self.error("Operator `+` expected a number to its right, got nothing");
+            }
+
+            let a = a.unwrap();
+            let b = b.unwrap();
+
+            if a.token_type != TokenType::String && a.token_type != TokenType::Number {
+                self.error(&format!(
+                    "`+` expected a string or number, got identifier: `{}`",
+                    a.value
+                ));
+            } else if b.token_type != TokenType::String && b.token_type != TokenType::Number {
+                self.error(&format!(
+                    "`+` expected a string or number, got identifier: `{}`",
+                    b.value
+                ));
+            }
 
             self.skip_next = true;
 
+            let is_string = a.token_type == TokenType::String || b.token_type == TokenType::String;
+
+            if is_string {
+                self.stack.push(Token {
+                    token_type: TokenType::String,
+                    value: format!("{}{}", a.value, b.value),
+                });
+                return;
+            }
+
+            let a_number = a.value.parse::<i64>().unwrap_or_else(|_| {
+                self.error(&format!(
+                    "Operator `+` expected a number to its left. Got `{}`",
+                    a.value
+                ));
+            });
+
+            let b_number = b.value.parse::<i64>().unwrap_or_else(|_| {
+                self.error(&format!(
+                    "Operator `+` expected a number to its right. Got `{}`",
+                    b.value
+                ));
+            });
+
             self.stack.push(Token {
                 token_type: TokenType::Number,
-                value: (a + b).to_string(),
+                value: (a_number + b_number).to_string(),
             })
         } else if operator == "=" {
             let name = self.previous_token("=", 2, None);
@@ -152,10 +199,10 @@ impl Parser {
     ) -> Token {
         if self.tokens_on_line.len() <= self.index + 1 {
             return default.unwrap_or_else(|| {
-                panic!(
+                self.error(&format!(
                     "`{}` needs {} argument(s).",
                     identifier, expected_argument_amount
-                )
+                ));
             });
         }
 
@@ -177,10 +224,10 @@ impl Parser {
     ) -> Token {
         if self.index == 0 {
             return default.unwrap_or_else(|| {
-                panic!(
+                self.error(&format!(
                     "`{}` needs {} argument(s).",
                     identifier, expected_argument_amount
-                )
+                ));
             });
         }
 
@@ -192,6 +239,37 @@ impl Parser {
         }
 
         to_return
+    }
+
+    #[allow(dead_code)]
+    fn try_next_token(&self) -> Option<Token> {
+        if self.tokens_on_line.len() <= self.index + 1 {
+            return None;
+        }
+
+        let to_return = self.tokens_on_line[self.index + 1].clone();
+
+        let var = self.try_parse_variable(&to_return.value);
+        if let Some(variable) = var {
+            return Some(variable);
+        }
+
+        Some(to_return)
+    }
+
+    fn try_previous_token(&self) -> Option<Token> {
+        if self.index == 0 {
+            return None;
+        }
+
+        let to_return = self.tokens_on_line[self.index - 1].clone();
+
+        let var = self.try_parse_variable(&to_return.value);
+        if let Some(variable) = var {
+            return Some(variable);
+        }
+
+        Some(to_return)
     }
 
     fn try_parse_variable(&self, identifier: &String) -> Option<Token> {
@@ -213,10 +291,24 @@ impl Parser {
         default: Option<Token>,
     ) -> Token {
         self.stack.pop().or(default).unwrap_or_else(|| {
-            panic!(
-                "`{}` needs {} argument(s).",
+            self.error(&format!(
+                "`{}` needs {} argument(s)",
                 identifier, expected_argument_amount
-            )
+            ));
         })
+    }
+
+    fn error(&self, message: &str) -> ! {
+        io::stderr()
+            .write_all(
+                format!(
+                    "\x1b[31mERROR: {}. Error occurred on line {}.\x1b[0m\n",
+                    message,
+                    self.line + 1
+                )
+                .as_bytes(),
+            )
+            .expect("Encountered error while printing error. Error-ception!");
+        exit(1);
     }
 }

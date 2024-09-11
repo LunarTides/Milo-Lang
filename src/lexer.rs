@@ -67,10 +67,10 @@ impl Lexer {
                 }
 
                 // Numbers.
-                if !self.is_in_number
-                    && !self.is_in_string
-                    && char.is_numeric()
-                    && !(i > 0 && chars[i - 1].is_alphanumeric())
+                if !(self.is_in_number
+                    || self.is_in_string
+                    || !char.is_numeric()
+                    || i > 0 && chars[i - 1].is_alphanumeric())
                 {
                     self.push_token();
 
@@ -86,8 +86,8 @@ impl Lexer {
                     || char == '*'
                     || char == '/'
                     || char == '^'
-                    || (i < chars.len() - 1 && chars[i + 1] == '=')
                 {
+                    self.push_token();
                     self.token.token_type = TokenType::Operator;
                 }
 

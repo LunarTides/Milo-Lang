@@ -1,6 +1,7 @@
-string hello = "Hello"//, world!";
-print(hello); // Should print "Hello"
+hello = "Hello"//, world!";
+print(hello);                 // Should print "Hello"
+print(hello + ", world!");    // Should print "Hello, world!"
 
-int one = 1;
-int two = 2;
+one = 1;
+two = 2;
 print(one + two + two + one); // Should print "6"

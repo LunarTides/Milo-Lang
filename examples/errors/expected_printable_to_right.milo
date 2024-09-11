@@ -1,0 +1,1 @@
+print(+); // ERROR: Operator `+` expected a number to its right, got nothing. Error occurred on line 1.

@@ -1,0 +1,2 @@
+print(a); // ERROR: Unknown identifier: `a`. Error occurred on line 1.
+a=1

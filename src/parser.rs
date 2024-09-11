@@ -1,23 +1,63 @@
+use std::collections::HashMap;
+
 use crate::lexer::{LexedTokenLines, Token, TokenType};
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub enum VariableType {
+    #[default]
+    String,
+    Number,
+}
+
+struct Variable {
+    variable_type: VariableType,
+    value: String,
+}
 
 #[derive(Default)]
 pub struct Parser {
     stack: Vec<Token>,
+    variables: HashMap<String, Variable>,
+    tokens_in_file: LexedTokenLines,
+    tokens_on_line: Vec<Token>,
+    line: usize,
+    current_token: Token,
+    index: usize,
+    skip_next: bool,
 }
 
 impl Parser {
-    pub fn parse(&mut self, all_tokens: LexedTokenLines) {
+    pub fn new(tokens: LexedTokenLines) -> Self {
+        Parser {
+            tokens_in_file: tokens,
+            ..Default::default()
+        }
+    }
+
+    pub fn parse(&mut self) {
         println!(
             "--- Tokens ---\n{:?}\n--------------\n\n--- Output ---",
-            all_tokens
+            self.tokens_in_file
         );
 
-        for mut tokens in all_tokens {
+        for (line, mut tokens) in self.tokens_in_file.clone().into_iter().enumerate() {
+            self.tokens_on_line.clone_from(&tokens);
             tokens.reverse();
 
-            for token in tokens {
+            self.line = line;
+
+            for (i, token) in tokens.clone().into_iter().enumerate() {
+                if self.skip_next {
+                    self.skip_next = false;
+                    continue;
+                }
+
+                self.current_token = token.clone();
+                self.index = (tokens.len() - i) - 1;
+
                 match token.token_type {
                     TokenType::Identifier => self.parse_identifier(token.value),
+                    TokenType::Operator => self.parse_operator(token.value),
                     TokenType::Number | TokenType::String => self.stack.push(token),
                 }
             }
@@ -28,7 +68,7 @@ impl Parser {
 
     fn parse_identifier(&mut self, identifier: String) {
         if identifier == "print" {
-            let token = self.pop_token(
+            let token = self.pop_stack(
                 "print",
                 1,
                 Some(Token {
@@ -47,18 +87,65 @@ impl Parser {
             }
 
             println!("{}", to_print);
-        } else if identifier == "add" {
-            let a = self.pop_token("add", 2, None).value.parse::<i64>().unwrap();
-            let b = self.pop_token("add", 2, None).value.parse::<i64>().unwrap();
+        }
+    }
+
+    fn parse_operator(&mut self, operator: String) {
+        if operator == "+" {
+            let a = self
+                .previous_token("+", 2, None)
+                .value
+                .parse::<i64>()
+                .unwrap();
+            let b = self.next_token("+", 2, None).value.parse::<i64>().unwrap();
+
+            self.stack.pop();
+            self.skip_next = true;
 
             self.stack.push(Token {
                 token_type: TokenType::Number,
                 value: (a + b).to_string(),
-            });
+            })
         }
     }
 
-    fn pop_token(
+    fn next_token(
+        &self,
+        identifier: &str,
+        expected_argument_amount: u8,
+        default: Option<Token>,
+    ) -> Token {
+        if self.tokens_on_line.len() <= self.index + 1 {
+            return default.unwrap_or_else(|| {
+                panic!(
+                    "`{}` needs {} argument(s).",
+                    identifier, expected_argument_amount
+                )
+            });
+        }
+
+        self.tokens_on_line[self.index + 1].clone()
+    }
+
+    fn previous_token(
+        &self,
+        identifier: &str,
+        expected_argument_amount: u8,
+        default: Option<Token>,
+    ) -> Token {
+        if self.index == 0 {
+            return default.unwrap_or_else(|| {
+                panic!(
+                    "`{}` needs {} argument(s).",
+                    identifier, expected_argument_amount
+                )
+            });
+        }
+
+        self.tokens_on_line[self.index - 1].clone()
+    }
+
+    fn pop_stack(
         &mut self,
         identifier: &str,
         expected_argument_amount: u8,

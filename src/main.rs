@@ -21,6 +21,6 @@ fn main() {
     let mut lexer = Lexer::default();
     let tokens = lexer.lex_code(code);
 
-    let mut parser = Parser::default();
-    parser.parse(tokens);
+    let mut parser = Parser::new(tokens);
+    parser.parse();
 }

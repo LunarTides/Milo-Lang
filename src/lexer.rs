@@ -1,12 +1,13 @@
+pub type LexedTokenLines = Vec<Vec<Token>>;
+
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum TokenType {
     #[default]
     Identifier,
     Number,
     String,
+    Operator,
 }
-
-pub type LexedTokenLines = Vec<Vec<Token>>;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Token {
@@ -55,7 +56,7 @@ impl Lexer {
                 }
 
                 // Opening brackets.
-                if char == '(' {
+                if char == '(' || char == ' ' {
                     self.push_token();
                     continue;
                 }
@@ -64,7 +65,7 @@ impl Lexer {
                 if !self.is_in_number
                     && !self.is_in_string
                     && char.is_numeric()
-                    && !chars[i - 1].is_alphanumeric()
+                    && (i > 0 && !chars[i - 1].is_alphanumeric())
                 {
                     self.push_token();
 
@@ -74,8 +75,19 @@ impl Lexer {
                     self.push_token();
                 }
 
+                if char == '='
+                    || char == '+'
+                    || char == '-'
+                    || char == '*'
+                    || char == '/'
+                    || char == '^'
+                    || (i >= chars.len() && chars[i + 1] == '=')
+                {
+                    self.token.token_type = TokenType::Operator;
+                }
+
                 // Ignore outside of strings.
-                if char == ')' || char == ' ' || char == ',' {
+                if char == ')' || char == ',' {
                     continue;
                 }
 

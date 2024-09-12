@@ -10,6 +10,7 @@ pub enum VariableType {
     #[default]
     String,
     Number,
+    Boolean,
 }
 
 impl From<VariableType> for TokenType {
@@ -17,10 +18,12 @@ impl From<VariableType> for TokenType {
         match variable_type {
             VariableType::String => TokenType::String,
             VariableType::Number => TokenType::Number,
+            VariableType::Boolean => TokenType::Boolean
         }
     }
 }
 
+#[derive(Debug)]
 struct Variable {
     variable_type: VariableType,
     value: String,
@@ -68,12 +71,18 @@ impl Parser {
                 match token.token_type {
                     TokenType::Identifier => self.parse_identifier(token.value),
                     TokenType::Operator => self.parse_operator(token.value),
-                    TokenType::Number | TokenType::String => self.stack.push(token),
+                    TokenType::Number | TokenType::String | TokenType::Boolean => {
+                        self.stack.push(token)
+                    }
                 }
             }
         }
 
         println!("--------------");
+
+        println!("--- Variables ---");
+        println!("{:?}", self.variables);
+        println!("-----------------");
     }
 
     fn parse_identifier(&mut self, identifier: String) {
@@ -89,12 +98,15 @@ impl Parser {
 
             let mut to_print = &token.value;
 
-            // Remove leading zeroes if the value is a number.
-            let to_print_if_number = &to_print.trim_start_matches('0').to_string();
+            let to_print_if_number = &format!("\x1b[33m{}\x1b[0m", to_print.trim_start_matches('0'));
+            let to_print_yellow = &format!("\x1b[33m{}\x1b[0m", to_print);
 
-            if token.token_type == TokenType::Number {
-                to_print = to_print_if_number
-            }
+            to_print = match token.token_type {
+                // Remove leading zeroes if the value is a number.
+                TokenType::Number => to_print_if_number,
+                TokenType::Boolean => to_print_yellow,
+                TokenType::Identifier | TokenType::Operator | TokenType::String => to_print,
+            };
 
             println!("{}", to_print);
         } else {
@@ -178,18 +190,10 @@ impl Parser {
             self.stack.pop();
             self.skip_next = true;
 
-            let is_string = value.value.starts_with('"') && value.value.ends_with('"');
-
-            let variable_type = if is_string {
-                VariableType::String
-            } else {
-                VariableType::Number
-            };
-
             self.variables.insert(
                 name.value,
                 Variable {
-                    variable_type,
+                    variable_type: VariableType::from(value.token_type),
                     value: value.value,
                 },
             );

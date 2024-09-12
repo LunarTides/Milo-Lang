@@ -1,0 +1,11 @@
+a = true
+b = false
+
+print(a)
+print(b)
+
+print(a & b)
+print(a | b)
+
+print(1 == 2)
+print(1 == 1)

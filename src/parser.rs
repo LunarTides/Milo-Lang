@@ -18,7 +18,7 @@ impl From<VariableType> for TokenType {
         match variable_type {
             VariableType::String => TokenType::String,
             VariableType::Number => TokenType::Number,
-            VariableType::Boolean => TokenType::Boolean
+            VariableType::Boolean => TokenType::Boolean,
         }
     }
 }
@@ -98,7 +98,8 @@ impl Parser {
 
             let mut to_print = &token.value;
 
-            let to_print_if_number = &format!("\x1b[33m{}\x1b[0m", to_print.trim_start_matches('0'));
+            let to_print_if_number =
+                &format!("\x1b[33m{}\x1b[0m", to_print.trim_start_matches('0'));
             let to_print_yellow = &format!("\x1b[33m{}\x1b[0m", to_print);
 
             to_print = match token.token_type {
@@ -121,85 +122,113 @@ impl Parser {
 
     fn parse_operator(&mut self, operator: String) {
         if operator == "+" {
-            let a = self.try_previous_token();
-            let b = self.stack.pop();
+            if let Some((a, b)) = self.get_surrounding_operator("+") {
+                if a.token_type != TokenType::String && a.token_type != TokenType::Number {
+                    self.error(&format!(
+                        "`{}` expected a string or number, got identifier: `{}`",
+                        operator, a.value
+                    ));
+                    return;
+                } else if b.token_type != TokenType::String && b.token_type != TokenType::Number {
+                    self.error(&format!(
+                        "`{}` expected a string or number, got identifier: `{}`",
+                        operator, b.value
+                    ));
+                    return;
+                }
 
-            if a.is_none() {
-                self.error("Operator `+` expected a number to its left, got nothing");
-                return;
-            } else if b.is_none() {
-                self.error("Operator `+` expected a number to its right, got nothing");
-                return;
-            }
+                let is_string =
+                    a.token_type == TokenType::String || b.token_type == TokenType::String;
 
-            let a = a.unwrap();
-            let b = b.unwrap();
+                if is_string {
+                    self.stack.push(Token {
+                        token_type: TokenType::String,
+                        value: format!("{}{}", a.value, b.value),
+                    });
+                    return;
+                }
 
-            if a.token_type != TokenType::String && a.token_type != TokenType::Number {
-                self.error(&format!(
-                    "`+` expected a string or number, got identifier: `{}`",
-                    a.value
-                ));
-                return;
-            } else if b.token_type != TokenType::String && b.token_type != TokenType::Number {
-                self.error(&format!(
-                    "`+` expected a string or number, got identifier: `{}`",
-                    b.value
-                ));
-                return;
-            }
+                let a_number = a.value.parse::<i64>().unwrap_or_else(|_| {
+                    self.error(&format!(
+                        "Operator `+` expected a number to its left. Got `{}`",
+                        a.value
+                    ));
 
-            self.skip_next = true;
-
-            let is_string = a.token_type == TokenType::String || b.token_type == TokenType::String;
-
-            if is_string {
-                self.stack.push(Token {
-                    token_type: TokenType::String,
-                    value: format!("{}{}", a.value, b.value),
+                    0
                 });
-                return;
+
+                let b_number = b.value.parse::<i64>().unwrap_or_else(|_| {
+                    self.error(&format!(
+                        "Operator `+` expected a number to its right. Got `{}`",
+                        b.value
+                    ));
+
+                    0
+                });
+
+                self.stack.push(Token {
+                    token_type: TokenType::Number,
+                    value: (a_number + b_number).to_string(),
+                })
             }
-
-            let a_number = a.value.parse::<i64>().unwrap_or_else(|_| {
-                self.error(&format!(
-                    "Operator `+` expected a number to its left. Got `{}`",
-                    a.value
-                ));
-
-                0
-            });
-
-            let b_number = b.value.parse::<i64>().unwrap_or_else(|_| {
-                self.error(&format!(
-                    "Operator `+` expected a number to its right. Got `{}`",
-                    b.value
-                ));
-
-                0
-            });
-
-            self.stack.push(Token {
-                token_type: TokenType::Number,
-                value: (a_number + b_number).to_string(),
-            })
         } else if operator == "=" {
-            let name = self.previous_token("=", 2, None);
-            let value = self.next_token("=", 2, None);
+            if let Some((name, value)) = self.get_surrounding_operator("=") {
+                if name.token_type != TokenType::Identifier {
+                    self.error(&format!(
+                        "`{}` expected an identifier on its left, got: `{:?}`",
+                        operator, name.token_type
+                    ));
+                    return;
+                } else if value.token_type != TokenType::String
+                    && value.token_type != TokenType::Number
+                    && value.token_type != TokenType::Boolean
+                {
+                    self.error(&format!(
+                        "`{}` expected a string, number, or boolean, got identifier: `{}`",
+                        operator, value.value
+                    ));
+                    return;
+                }
 
-            self.stack.pop();
-            self.skip_next = true;
+                self.variables.insert(
+                    name.value,
+                    Variable {
+                        variable_type: VariableType::from(value.token_type),
+                        value: value.value,
+                    },
+                );
+            }
+        } else if operator == "==" {
+            if let Some((a, b)) = self.get_surrounding_operator("==") {
+                if a.token_type != TokenType::String
+                    && a.token_type != TokenType::Number
+                    && a.token_type != TokenType::Boolean
+                {
+                    self.error(&format!(
+                        "`{}` expected a string, number, or boolean, got identifier: `{}`",
+                        operator, a.value
+                    ));
+                    return;
+                } else if b.token_type != TokenType::String
+                    && b.token_type != TokenType::Number
+                    && b.token_type != TokenType::Boolean
+                {
+                    self.error(&format!(
+                        "`{}` expected a string, number, or boolean, got identifier: `{}`",
+                        operator, b.value
+                    ));
+                    return;
+                }
 
-            self.variables.insert(
-                name.value,
-                Variable {
-                    variable_type: VariableType::from(value.token_type),
-                    value: value.value,
-                },
-            );
+                self.stack.push(Token {
+                    token_type: TokenType::Boolean,
+                    value: (a == b).to_string(),
+                })
+            }
         }
     }
 
+    #[allow(dead_code)]
     fn next_token(
         &mut self,
         identifier: &str,
@@ -227,6 +256,7 @@ impl Parser {
         to_return
     }
 
+    #[allow(dead_code)]
     fn previous_token(
         &mut self,
         identifier: &str,
@@ -283,6 +313,31 @@ impl Parser {
         }
 
         Some(to_return)
+    }
+
+    fn get_surrounding_operator(&mut self, operator: &str) -> Option<(Token, Token)> {
+        let a = self.try_previous_token();
+        let b = self.stack.pop();
+
+        if a.is_none() {
+            self.error(&format!(
+                "Operator `{}` expected a token on its left, got nothing",
+                operator
+            ));
+            return None;
+        } else if b.is_none() {
+            self.error(&format!(
+                "Operator `{}` expected a token on its right, got nothing",
+                operator
+            ));
+            return None;
+        }
+
+        let a = a.unwrap();
+        let b = b.unwrap();
+
+        self.skip_next = true;
+        Some((a, b))
     }
 
     fn try_parse_variable(&self, identifier: &String) -> Option<Token> {

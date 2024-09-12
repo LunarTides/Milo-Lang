@@ -105,8 +105,13 @@ impl Lexer {
                     || char == '/'
                     || char == '^'
                 {
-                    self.push_token();
                     self.token.token_type = TokenType::Operator;
+
+                    if i >= chars.len() || chars[i + 1] != '=' {
+                        self.token.value += char.to_string().as_str();
+                        self.push_token();
+                        continue;
+                    }
                 }
 
                 let current_token = self.current_token(&lines, line_index);

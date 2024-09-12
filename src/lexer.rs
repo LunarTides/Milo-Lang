@@ -120,6 +120,10 @@ impl Lexer {
                     self.token.token_type = TokenType::Boolean;
                 }
 
+                if current_token == "&&" || current_token == "||" {
+                    self.token.token_type = TokenType::Operator;
+                }
+
                 // Ignore outside of strings.
                 if char == ')' || char == ',' {
                     continue;

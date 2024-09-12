@@ -1,20 +1,24 @@
-x = 1 == 2
-y = 1 == 1
-
-print(x)
-print(y)
-
 a = true
 b = false
 
-print(a)
-print(b)
+print(a) // true
+print(b) // false
 
-// print(a && b)
-// print(a || b)
+print(1 == 2) // false
+print(1 == 1) // true
 
-print(1 == 2)
-print(1 == 1)
+x = 1 == 2
+y = 1 == 1
+z = "das" == "das"
 
-print(a == b)
-print(b == b)
+print(x) // false
+print(y) // true
+print(z) // true
+
+print(a && b) // false
+print(a || b) // true
+print(b && a) // false
+print(b || a) // true
+
+print(a == b) // false
+print(b == b) // true

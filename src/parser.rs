@@ -225,6 +225,50 @@ impl Parser {
                     value: (a == b).to_string(),
                 })
             }
+        } else if operator == "&&" {
+            if let Some((a, b)) = self.get_surrounding_operator("&&") {
+                if a.token_type != TokenType::Boolean {
+                    self.error(&format!(
+                        "`{}` expected a boolean, got identifier: `{}`",
+                        operator, a.value
+                    ));
+                    return;
+                } else if b.token_type != TokenType::Boolean {
+                    self.error(&format!(
+                        "`{}` expected a boolean, got identifier: `{}`",
+                        operator, b.value
+                    ));
+                    return;
+                }
+
+                self.stack.push(Token {
+                    token_type: TokenType::Boolean,
+                    value: (a.value.parse().unwrap() && b.value.parse().unwrap()).to_string(),
+                })
+            }
+        } else if operator == "||" {
+            if let Some((a, b)) = self.get_surrounding_operator("||") {
+                if a.token_type != TokenType::Boolean {
+                    self.error(&format!(
+                        "`{}` expected a boolean, got identifier: `{}`",
+                        operator, a.value
+                    ));
+                    return;
+                } else if b.token_type != TokenType::Boolean {
+                    self.error(&format!(
+                        "`{}` expected a boolean, got identifier: `{}`",
+                        operator, b.value
+                    ));
+                    return;
+                }
+
+                self.stack.push(Token {
+                    token_type: TokenType::Boolean,
+                    value: (a.value.parse().unwrap() || b.value.parse().unwrap()).to_string(),
+                })
+            }
+        } else {
+            self.error(&format!("Unknown operator: `{}`", operator));
         }
     }
 

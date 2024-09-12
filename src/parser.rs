@@ -38,11 +38,12 @@ pub struct Parser {
     current_token: Token,
     index: usize,
     skip_next: bool,
-    should_abort: bool,
+    pub should_abort: bool,
 }
 
 impl Parser {
     pub fn parse(&mut self, tokens: LexedTokenLines) {
+        #[cfg(debug_assertions)]
         println!(
             "--- Tokens ---\n{:?}\n--------------\n\n--- Output ---",
             tokens
@@ -56,7 +57,14 @@ impl Parser {
 
             for (i, token) in tokens.clone().into_iter().enumerate() {
                 if self.should_abort {
-                    println!("--------------");
+                    #[cfg(debug_assertions)]
+                    {
+                        println!("--------------");
+
+                        println!("--- Variables ---");
+                        println!("{:?}", self.variables);
+                        println!("-----------------");
+                    }
                     return;
                 }
 
@@ -78,11 +86,14 @@ impl Parser {
             }
         }
 
-        println!("--------------");
+        #[cfg(debug_assertions)]
+        {
+            println!("--------------");
 
-        println!("--- Variables ---");
-        println!("{:?}", self.variables);
-        println!("-----------------");
+            println!("--- Variables ---");
+            println!("{:?}", self.variables);
+            println!("-----------------");
+        }
     }
 
     fn parse_identifier(&mut self, identifier: String) {
@@ -98,8 +109,12 @@ impl Parser {
 
             let mut to_print = &token.value;
 
-            let to_print_if_number =
-                &format!("\x1b[33m{}\x1b[0m", to_print.trim_start_matches('0'));
+            let to_print_if_number = if to_print == "0" {
+                &format!("\x1b[33m{}\x1b[0m", to_print)
+            } else {
+                &format!("\x1b[33m{}\x1b[0m", to_print.trim_start_matches('0'))
+            };
+
             let to_print_yellow = &format!("\x1b[33m{}\x1b[0m", to_print);
 
             to_print = match token.token_type {
@@ -223,6 +238,121 @@ impl Parser {
                 self.stack.push(Token {
                     token_type: TokenType::Boolean,
                     value: (a == b).to_string(),
+                })
+            }
+        } else if operator == "!=" {
+            if let Some((a, b)) = self.get_surrounding_operator("!=") {
+                if a.token_type != TokenType::String
+                    && a.token_type != TokenType::Number
+                    && a.token_type != TokenType::Boolean
+                {
+                    self.error(&format!(
+                        "`{}` expected a string, number, or boolean, got identifier: `{}`",
+                        operator, a.value
+                    ));
+                    return;
+                } else if b.token_type != TokenType::String
+                    && b.token_type != TokenType::Number
+                    && b.token_type != TokenType::Boolean
+                {
+                    self.error(&format!(
+                        "`{}` expected a string, number, or boolean, got identifier: `{}`",
+                        operator, b.value
+                    ));
+                    return;
+                }
+
+                self.stack.push(Token {
+                    token_type: TokenType::Boolean,
+                    value: (a != b).to_string(),
+                })
+            }
+        } else if operator == ">" {
+            if let Some((a, b)) = self.get_surrounding_operator(">") {
+                if a.token_type != TokenType::Number {
+                    self.error(&format!(
+                        "`{}` expected a number, got identifier: `{}`",
+                        operator, a.value
+                    ));
+                    return;
+                } else if b.token_type != TokenType::Number {
+                    self.error(&format!(
+                        "`{}` expected a number, got identifier: `{}`",
+                        operator, b.value
+                    ));
+                    return;
+                }
+
+                self.stack.push(Token {
+                    token_type: TokenType::Boolean,
+                    value: (a.value.parse::<i128>().unwrap() > b.value.parse::<i128>().unwrap())
+                        .to_string(),
+                })
+            }
+        } else if operator == "<" {
+            if let Some((a, b)) = self.get_surrounding_operator("<") {
+                if a.token_type != TokenType::Number {
+                    self.error(&format!(
+                        "`{}` expected a number, got identifier: `{}`",
+                        operator, a.value
+                    ));
+                    return;
+                } else if b.token_type != TokenType::Number {
+                    self.error(&format!(
+                        "`{}` expected a number, got identifier: `{}`",
+                        operator, b.value
+                    ));
+                    return;
+                }
+
+                self.stack.push(Token {
+                    token_type: TokenType::Boolean,
+                    value: (a.value.parse::<i128>().unwrap() < b.value.parse::<i128>().unwrap())
+                        .to_string(),
+                })
+            }
+        } else if operator == ">=" {
+            if let Some((a, b)) = self.get_surrounding_operator(">=") {
+                if a.token_type != TokenType::Number {
+                    self.error(&format!(
+                        "`{}` expected a number, got identifier: `{}`",
+                        operator, a.value
+                    ));
+                    return;
+                } else if b.token_type != TokenType::Number {
+                    self.error(&format!(
+                        "`{}` expected a number, got identifier: `{}`",
+                        operator, b.value
+                    ));
+                    return;
+                }
+
+                self.stack.push(Token {
+                    token_type: TokenType::Boolean,
+                    value: (a.value.parse::<i128>().unwrap() >= b.value.parse::<i128>().unwrap())
+                        .to_string(),
+                })
+            }
+        } else if operator == "<=" {
+            if let Some((a, b)) = self.get_surrounding_operator("<=") {
+                if a.token_type != TokenType::Number {
+                    self.error(&format!(
+                        "`{}` expected a number, got identifier: `{}`",
+                        operator, a.value
+                    ));
+                    return;
+                } else if b.token_type != TokenType::Number {
+                    self.error(&format!(
+                        "`{}` expected a number, got identifier: `{}`",
+                        operator, b.value
+                    ));
+                    return;
+                }
+
+                self.stack.push(Token {
+                    token_type: TokenType::Boolean,
+                    value: (a.value.parse::<i128>().unwrap() <= b.value.parse::<i128>().unwrap())
+                        .to_string(),
                 })
             }
         } else if operator == "&&" {

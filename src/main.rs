@@ -28,10 +28,10 @@ fn main() {
     let args = Args::parse();
 
     if args.repl {
-        loop {
-            let mut lexer = Lexer::default();
-            let mut parser = Parser::default();
+        let mut lexer = Lexer::default();
+        let mut parser = Parser::default();
 
+        loop {
             let mut input = String::new();
 
             print!("> ");
@@ -41,6 +41,7 @@ fn main() {
                 Ok(_) => {
                     let tokens = lexer.lex_code(input);
                     parser.parse(tokens);
+                    parser.should_abort = false;
                 }
                 Err(err) => panic!("{}", err),
             };

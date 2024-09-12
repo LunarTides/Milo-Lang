@@ -40,6 +40,7 @@ pub struct Lexer {
 
 impl Lexer {
     pub fn lex_code(&mut self, code: String) -> LexedTokenLines {
+        #[cfg(debug_assertions)]
         println!("--- Code ---\n{}\n------------\n", code);
 
         let mut global_tokens: LexedTokenLines = vec![];
@@ -98,12 +99,25 @@ impl Lexer {
                     self.push_token();
                 }
 
+                if char == '-' && i < chars.len() - 1 && chars[i + 1].is_numeric() {
+                    self.push_token();
+
+                    self.token.token_type = TokenType::Number;
+                    self.is_in_number = true;
+
+                    self.token.value += char.to_string().as_str();
+                    continue;
+                }
+
                 if char == '='
                     || char == '+'
                     || char == '-'
                     || char == '*'
                     || char == '/'
                     || char == '^'
+                    || char == '!'
+                    || char == '>'
+                    || char == '<'
                 {
                     self.token.token_type = TokenType::Operator;
 

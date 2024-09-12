@@ -38,6 +38,7 @@ pub struct Parser {
     current_token: Token,
     index: usize,
     skip_next: bool,
+    resolve_variables: bool,
     pub should_abort: bool,
 }
 
@@ -187,6 +188,8 @@ impl Parser {
                 })
             }
         } else if operator == "=" {
+            self.resolve_variables = false;
+
             if let Some((name, value)) = self.get_surrounding_operator("=") {
                 if name.token_type != TokenType::Identifier {
                     self.error(&format!(
@@ -213,6 +216,8 @@ impl Parser {
                     },
                 );
             }
+
+            self.resolve_variables = true;
         } else if operator == "==" {
             if let Some((a, b)) = self.get_surrounding_operator("==") {
                 if a.token_type != TokenType::String
@@ -515,6 +520,10 @@ impl Parser {
     }
 
     fn try_parse_variable(&self, identifier: &String) -> Option<Token> {
+        if !self.resolve_variables {
+            return None
+        }
+
         let var: Option<&Variable> = self.variables.get(identifier);
         if let Some(variable) = var {
             return Some(Token {

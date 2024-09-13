@@ -80,6 +80,7 @@ impl Parser {
                 match token.token_type {
                     TokenType::Identifier => self.parse_identifier(token.value),
                     TokenType::Operator => self.parse_operator(token.value),
+                    TokenType::Symbol => (),
                     TokenType::Number | TokenType::String | TokenType::Boolean => {
                         self.stack.push(token)
                     }
@@ -122,7 +123,10 @@ impl Parser {
                 // Remove leading zeroes if the value is a number.
                 TokenType::Number => to_print_if_number,
                 TokenType::Boolean => to_print_yellow,
-                TokenType::Identifier | TokenType::Operator | TokenType::String => to_print,
+                TokenType::Identifier
+                | TokenType::Operator
+                | TokenType::Symbol
+                | TokenType::String => to_print,
             };
 
             println!("{}", to_print);
@@ -407,7 +411,7 @@ impl Parser {
         }
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     fn next_token(
         &mut self,
         identifier: &str,
@@ -435,7 +439,7 @@ impl Parser {
         to_return
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     fn previous_token(
         &mut self,
         identifier: &str,
@@ -463,7 +467,7 @@ impl Parser {
         to_return
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     fn try_next_token(&self) -> Option<Token> {
         if self.tokens_on_line.len() <= self.index + 1 {
             return None;
@@ -521,7 +525,7 @@ impl Parser {
 
     fn try_parse_variable(&self, identifier: &String) -> Option<Token> {
         if !self.resolve_variables {
-            return None
+            return None;
         }
 
         let var: Option<&Variable> = self.variables.get(identifier);

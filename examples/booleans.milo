@@ -1,19 +1,21 @@
 a = true
 b = false
 
-print(a) // true
-print(b) // false
+print(a && b) // false
 
-print(1 == 2) // false
-print(1 == 1) // true
+// print(a) // true
+// print(b) // false
 
-x = 1 == 2
-y = 1 == 1
-z = "das" == "das"
+// print(1 == 2) // false
+// print(1 == 1) // true
 
-print(x) // false
-print(y) // true
-print(z) // true
+// x = 1 == 2
+// y = 1 == 1
+// z = "das" == "das"
+
+// print(x) // false
+// print(y) // true
+// print(z) // true
 
 print(a && b) // false
 print(a || b) // true

@@ -2,6 +2,9 @@ use crate::parser::VariableType;
 
 pub type LexedTokenLines = Vec<Vec<Token>>;
 
+const SYMBOLS: &[char] = &['(', ')', '[', ']', '{', '}'];
+const OPERATORS: &[char] = &['=', '+', '-', '*', '/', '^', '!', '>', '<', '&', '|'];
+
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum TokenType {
     #[default]
@@ -32,16 +35,27 @@ pub struct Token {
     pub value: String,
 }
 
-const SYMBOLS: &[char] = &['(', ')', '[', ']', '{', '}'];
-const OPERATORS: &[char] = &['=', '+', '-', '*', '/', '^', '!', '>', '<'];
+struct TokenizedLine {
+    line_number: usize,
+    tokens: Vec<String>,
+}
+
+impl Default for TokenizedLine {
+    fn default() -> Self {
+        TokenizedLine {
+            // The default line number is MAX since if it starts at 0 the lexer will skip the first line.
+            line_number: usize::MAX,
+            tokens: Vec::default(),
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct Lexer {
     token: Token,
     token_index: usize,
+    tokenized_line: TokenizedLine,
     local_tokens: Vec<Token>,
-    is_in_string: bool,
-    is_in_number: bool,
 }
 
 impl Lexer {
@@ -54,12 +68,8 @@ impl Lexer {
         let mut global_tokens: LexedTokenLines = vec![];
         let lines = code.split(['\n', ';']).collect::<Vec<&str>>();
 
-        let mut seperators = vec![' '];
-        seperators.extend_from_slice(SYMBOLS);
-        seperators.extend_from_slice(OPERATORS);
-
         for (line_index, line) in lines.clone().into_iter().enumerate() {
-            if line.is_empty() {
+            if line.is_empty() || line.trim().starts_with("//") {
                 continue;
             }
 
@@ -92,47 +102,35 @@ impl Lexer {
 
                 // Strings.
                 if char == '"' {
-                    if !self.is_in_string {
-                        self.token.token_type = TokenType::String;
+                    self.token.token_type = TokenType::String;
 
-                        self.token.value +=
-                            current_token.replace('"', "").split("//").next().unwrap();
+                    self.token.value += current_token.replace('"', "").split("//").next().unwrap();
 
-                        self.push_token();
+                    self.push_token();
 
-                        if current_token.contains("//") || current_token.contains("#") {
-                            break;
-                        }
+                    if current_token.contains("//") {
+                        break;
                     }
 
-                    self.is_in_string = !self.is_in_string;
-                    continue;
-                }
-
-                if self.is_in_string || self.is_in_number {
                     continue;
                 }
 
                 // Numbers.
                 if char.is_numeric() {
-                    if !self.is_in_number {
-                        self.token.token_type = TokenType::Number;
-                        self.token.value += current_token
-                            .split(|c: char| !c.is_numeric())
-                            .next()
-                            .unwrap();
+                    self.token.token_type = TokenType::Number;
+                    self.token.value += current_token
+                        .split(|c: char| !c.is_numeric())
+                        .next()
+                        .unwrap();
 
-                        self.push_token();
-                    }
+                    self.push_token();
 
-                    self.is_in_number = !self.is_in_number;
                     continue;
                 }
 
                 // Comment logic.
-                if char == '#'
-                    || (char == '/' && (i < chars.len() - 1 && chars[i + 1] == '/'))
-                    || current_token == "//"
+                if current_token == "//"
+                    || (char == '/' && i < chars.len() - 1 && chars[i + 1] == '/')
                 {
                     break;
                 }
@@ -155,8 +153,6 @@ impl Lexer {
                     self.push_token();
 
                     self.token.token_type = TokenType::Number;
-                    self.is_in_number = true;
-
                     self.token.value += char.to_string().as_str();
                     continue;
                 }
@@ -195,14 +191,19 @@ impl Lexer {
     }
 
     fn current_token(&mut self, lines: &[&str], line_index: usize) -> String {
-        // let mut split = vec![' '];
         let mut split = vec![];
         split.extend_from_slice(SYMBOLS);
-        // split.extend_from_slice(OPERATORS);
+        split.extend_from_slice(OPERATORS);
 
-        let tokens = lines[line_index]
-            .split(split.as_slice())
-            .collect::<Vec<&str>>();
+        if self.tokenized_line.line_number != line_index {
+            self.tokenized_line.tokens = self.split_tokens(lines[line_index].to_string(), |c| {
+                split.as_slice().contains(&c)
+            });
+
+            self.tokenized_line.line_number = line_index;
+        }
+
+        let tokens = &self.tokenized_line.tokens;
 
         if self.token_index >= tokens.len() || lines[line_index].is_empty() {
             return String::new();
@@ -212,9 +213,6 @@ impl Lexer {
     }
 
     fn push_token(&mut self) {
-        self.is_in_number = false;
-        self.is_in_string = false;
-
         if self.token.value.is_empty() {
             self.token = Token::default();
             return;
@@ -223,5 +221,52 @@ impl Lexer {
         self.local_tokens.push(self.token.clone());
         self.token = Token::default();
         self.token_index += 1;
+    }
+
+    // https://stackoverflow.com/a/40296745
+    fn split_tokens<F>(&self, text: String, predicate: F) -> Vec<String>
+    where
+        F: Fn(char) -> bool,
+    {
+        let mut result = Vec::new();
+        let mut last = 0;
+        let mut is_in_string = false;
+        let mut string_builder = String::new();
+        for (index, matched) in text.match_indices(predicate) {
+            if last != index {
+                if is_in_string {
+                    string_builder += &text[last..index];
+                }
+
+                if is_in_string && text[last..index].ends_with('"') {
+                    is_in_string = false;
+                    result.push(string_builder);
+                    string_builder = String::new();
+                    last = index + matched.len() - 1;
+                    continue;
+                }
+
+                if text[last..index].starts_with('"') {
+                    is_in_string = true;
+                    continue;
+                }
+
+                result.push(text[last..index].to_string());
+            }
+            result.push(matched.to_string());
+            last = index + matched.len();
+        }
+
+        if last < text.len() {
+            let mut end = text.len();
+
+            if text.ends_with([')', ']', '}']) {
+                end -= 1;
+            }
+
+            result.push(text[last..end].to_string());
+        }
+
+        result
     }
 }
